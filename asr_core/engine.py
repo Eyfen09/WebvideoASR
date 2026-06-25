@@ -5,6 +5,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from .audio import prepared_audio_for_model
 from .backends.mlx_backend import MLXSession
 from .backends.torch_backend import TorchSession
 from .config import ASRConfig, Device
@@ -63,4 +64,5 @@ def transcribe_audio(
         options["forced_aligner"] = config.forced_aligner
 
     transcribe = getattr(session, "transcribe")
-    return result_to_dict(transcribe(str(audio_path), **options))
+    with prepared_audio_for_model(audio_path) as model_audio_path:
+        return result_to_dict(transcribe(str(model_audio_path), **options))

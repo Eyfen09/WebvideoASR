@@ -17,6 +17,11 @@ SUPPORTED_EXTENSIONS = frozenset(
 )
 
 
+def describe_exception(exc: Exception) -> str:
+    message = str(exc).strip()
+    return message or type(exc).__name__
+
+
 def discover_audio_files(input_path: Path) -> list[Path]:
     path = input_path.expanduser()
     if not path.exists():
@@ -64,7 +69,7 @@ def process_files(
             write_text_atomic(destination, content)
         except Exception as exc:
             failures += 1
-            print(f"    失败：{exc}", file=sys.stderr)
+            print(f"    失败：{describe_exception(exc)}", file=sys.stderr)
             continue
         successes += 1
         print(f"    已保存：{destination}")
