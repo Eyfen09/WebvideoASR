@@ -1,0 +1,11 @@
+model:
+  path: "../model/Qwen3-ASR-1.7B"
+  device: "gpu"
+
+transcription:
+  language: null
+  timestamps: false
+  forced_aligner: "Qwen/Qwen3-ForcedAligner-0.6B"
+
+output:
+  directory: "../output/local"

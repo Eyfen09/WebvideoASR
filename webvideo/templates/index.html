@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>网络视频转录</title>
+  <link rel="stylesheet" href="/static/styles.css?v=__ASSET_VERSION__">
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <p class="eyebrow">ASR</p>
+        <h1>网络视频转录</h1>
+        <p class="subtitle">解析视频、播放列表、频道、主页和普通网页。</p>
+      </div>
+      <div class="header-actions">
+        <div id="serviceState" class="service-state"><span></span> 本地服务</div>
+        <button id="loginCacheButton" type="button" class="link-button">管理登录缓存</button>
+      </div>
+    </header>
+
+    <section class="card input-card">
+      <form id="urlForm">
+        <label for="urlInput">输入网络链接</label>
+        <div class="input-row">
+          <input id="urlInput" type="url" placeholder="https://…" required autocomplete="off">
+          <button id="parseButton" type="submit" class="primary">开始解析</button>
+        </div>
+      </form>
+      <p id="message" class="message"></p>
+    </section>
+
+    <section id="taskCard" class="card task-card hidden">
+      <div class="task-heading">
+        <div>
+          <p id="taskStatus" class="status-pill">等待</p>
+          <h2 id="taskTitle">解析结果</h2>
+          <a id="sourceLink" class="source-link" target="_blank" rel="noreferrer"></a>
+        </div>
+        <div class="task-actions">
+          <button id="retryButton" class="secondary hidden">重试失败项</button>
+          <button id="confirmButton" class="primary" disabled>开始转录</button>
+        </div>
+      </div>
+
+      <div id="browserActions" class="browser-actions hidden">
+        <div>
+          <strong>Chrome 已打开，浏览器会保持等待</strong>
+          <span>请完成登录；如果该网页无需登录，也可以直接继续解析。</span>
+        </div>
+        <button id="skipLoginButton" class="secondary">无需登录，继续</button>
+        <button id="loginCompleteButton" class="primary">登录完成，继续解析</button>
+      </div>
+
+      <div id="qrLogin" class="qr-login hidden">
+        <img id="loginQrCode" alt="登录二维码">
+        <div>
+          <strong id="qrPlatform">扫码登录</strong>
+          <span id="qrMessage">请使用对应平台客户端扫码并确认。</span>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div><strong id="totalCount">0</strong><span>已发现</span></div>
+        <div><strong id="selectedCount">0</strong><span>已选择</span></div>
+        <div><strong id="completedCount">0</strong><span>已完成</span></div>
+        <div><strong id="failedCount">0</strong><span>需处理</span></div>
+      </div>
+
+      <div class="list-toolbar">
+        <label class="select-all"><input id="selectAll" type="checkbox" checked> 全选</label>
+        <span id="listHint">解析完成后确认选择</span>
+      </div>
+      <div id="videoList" class="video-list" aria-live="polite"></div>
+      <div id="emptyState" class="empty-state">尚未发现视频</div>
+    </section>
+  </main>
+  <div id="loginCacheModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="loginCacheTitle">
+    <section class="modal-card">
+      <div class="modal-heading">
+        <div>
+          <p class="eyebrow">LOGIN CACHE</p>
+          <h2 id="loginCacheTitle">登录缓存管理</h2>
+        </div>
+        <button id="closeLoginCacheButton" type="button" class="icon-button" aria-label="关闭">×</button>
+      </div>
+      <p class="modal-description">清除后，下次解析该平台链接时需要重新登录。其他平台不会受到影响。</p>
+      <div id="loginCacheList" class="login-cache-list" aria-live="polite"></div>
+      <div class="modal-danger-zone">
+        <div>
+          <strong>清除所有平台</strong>
+          <span>只删除登录 Cookie 和 WebVideo 专用浏览器登录资料。</span>
+        </div>
+        <button id="clearAllLoginCacheButton" type="button" class="danger">清除所有登录缓存</button>
+      </div>
+    </section>
+  </div>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <script src="/static/app.js?v=__ASSET_VERSION__" defer></script>
+</body>
+</html>
