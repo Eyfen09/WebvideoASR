@@ -22,7 +22,6 @@ output/
 my_note/
 docs/
 .firecrawl/
-audio/
 tests/
 
 # model

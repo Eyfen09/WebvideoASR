@@ -28,7 +28,8 @@ def run(input_path: Path, *, cpu: bool = False) -> int:
     print(f"正在加载模型：{config.model_path}")
     try:
         session = create_session(
-            config.model_path, device, forced_aligner=config.forced_aligner
+            config.model_path, device,
+            forced_aligner=config.forced_aligner if config.timestamps else None,
         )
     except Exception as exc:
         print(f"错误：模型加载失败：{exc}", file=sys.stderr)

@@ -176,7 +176,7 @@ class TranscriptionPipeline:
                     if session is None:
                         session = self.session_factory(
                             asr_config.model_path, asr_config.device,
-                            forced_aligner=asr_config.forced_aligner,
+                            forced_aligner=asr_config.forced_aligner if asr_config.timestamps else None,
                         )
                     self.repository.update_item(
                         item_id, status="transcribing", progress=0
