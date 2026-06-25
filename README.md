@@ -119,11 +119,11 @@ webvideoASR/
 │   ├── static/              # 前端 JS/CSS
 │   └── templates/           # HTML 模板
 ├── asr_core/                # 核心 ASR 引擎（共享模块）
-│   ├── engine.py            # 会话创建与转写统一接口
-│   ├── config.py            # 配置模型与 Device 枚举
-│   ├── formatting.py        # 结果格式化
-│   └── backends/
-│       ├── mlx_backend.py   # macOS MLX 后端
-│       └── torch_backend.py # PyTorch 后端（CUDA / CPU）
-└── tests/                   # 测试
+    ├── engine.py            # 会话创建与转写统一接口
+    ├── config.py            # 配置模型与 Device 枚举
+    ├── formatting.py        # 结果格式化
+    └── backends/
+        ├── mlx_backend.py   # macOS MLX 后端
+        └── torch_backend.py # PyTorch 后端（CUDA / CPU）
+
 ```
