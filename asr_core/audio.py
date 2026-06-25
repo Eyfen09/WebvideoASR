@@ -9,8 +9,27 @@ from contextlib import contextmanager
 from pathlib import Path
 
 
+def is_riff_wave(audio_path: Path) -> bool:
+    try:
+        header = audio_path.read_bytes()[:12]
+    except OSError:
+        return False
+    return header[:4] == b"RIFF" and header[8:12] == b"WAVE"
+
+
 def needs_windows_wav_conversion(audio_path: Path) -> bool:
-    return sys.platform == "win32" and audio_path.suffix.lower() != ".wav"
+    return sys.platform == "win32" and not is_riff_wave(audio_path)
+
+
+def ffmpeg_executable() -> str | None:
+    ffmpeg_path = shutil.which("ffmpeg")
+    if ffmpeg_path is not None:
+        return ffmpeg_path
+    try:
+        from imageio_ffmpeg import get_ffmpeg_exe
+    except ImportError:
+        return None
+    return get_ffmpeg_exe()
 
 
 @contextmanager
@@ -20,11 +39,11 @@ def prepared_audio_for_model(audio_path: Path) -> Iterator[Path]:
         yield path
         return
 
-    ffmpeg_path = shutil.which("ffmpeg")
+    ffmpeg_path = ffmpeg_executable()
     if ffmpeg_path is None:
         raise RuntimeError(
-            "Windows 转写 m4a/mp3/mp4 等格式需要安装 FFmpeg，并确保 ffmpeg.exe 在 PATH 中；"
-            "也可以先手动转成 16kHz 单声道 wav 后再转写"
+            "Windows 转写 m4a/mp3/mp4 等格式需要 FFmpeg；"
+            "请运行 uv sync 安装项目依赖，或安装系统 FFmpeg 并确保 ffmpeg.exe 在 PATH 中"
         )
 
     with tempfile.TemporaryDirectory(prefix="videoasr-audio-") as temp_dir:

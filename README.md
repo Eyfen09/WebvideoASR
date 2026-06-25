@@ -37,15 +37,6 @@ uv sync --extra win-gpu
 uv sync --extra cpu
 ```
 
-Windows 转写 `m4a`、`mp3`、`mp4` 等非 wav 文件时需要系统可执行的 FFmpeg：
-
-```powershell
-winget install Gyan.FFmpeg
-ffmpeg -version
-```
-
-如果不安装 FFmpeg，也可以先手动把音频转成 16kHz 单声道 wav 后再转写。
-
 ### 3. 下载模型
 
 **模型：Qwen3-ASR**
