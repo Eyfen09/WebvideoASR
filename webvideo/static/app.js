@@ -1,5 +1,9 @@
 const $ = (selector) => document.querySelector(selector);
-const state = { task: null, auth: {}, items: [], loginCaches: [], loaded: 100, events: null, refreshTimer: null, lastAuthStatus: "", toastTimer: null };
+const state = {
+  task: null, auth: {}, items: [], loginCaches: [], loaded: 100, events: null,
+  refreshTimer: null, lastAuthStatus: "", toastTimer: null,
+  page: "transcription", storageItems: [], storageSelected: new Set(),
+};
 
 const statusNames = {
   parsing: "正在解析", browser: "浏览器解析", ready: "等待确认",
@@ -65,6 +69,23 @@ function itemHTML(item) {
   </article>`;
 }
 
+function storageItemHTML(item) {
+  const selected = state.storageSelected.has(Number(item.id));
+  return `<article class="storage-row" data-id="${item.id}">
+    <input class="storage-check" type="checkbox" ${selected ? "checked" : ""} aria-label="选择 ${escapeHTML(item.title)}">
+    <div>
+      <h3 class="video-title">${escapeHTML(item.title)}</h3>
+      <div class="video-meta">
+        <span>${escapeHTML(item.author || "作者未知")}</span>
+        <span>${escapeHTML(item.duration_text || formatDuration(item.duration_seconds))}</span>
+        <span>${escapeHTML(item.extractor)}</span>
+        <a href="${escapeHTML(item.webpage_url || item.source_page || item.url)}" target="_blank" rel="noreferrer">来源</a>
+      </div>
+    </div>
+    <a class="transcript-link storage-result" href="/api/items/${item.id}/transcript" target="_blank">查看转录结果</a>
+  </article>`;
+}
+
 function renderItems() {
   const list = $("#videoList");
   list.innerHTML = state.items.map(itemHTML).join("");
@@ -86,6 +107,61 @@ function renderItems() {
   });
 }
 
+function renderStorageItems() {
+  const list = $("#storageList");
+  list.innerHTML = state.storageItems.map(storageItemHTML).join("");
+  const selectedCount = state.storageSelected.size;
+  const total = state.storageItems.length;
+  $("#storageEmpty").classList.toggle("hidden", total > 0);
+  list.classList.toggle("hidden", total === 0);
+  $("#storageHint").textContent = `${selectedCount} / ${total} 个视频已选择`;
+  $("#deleteStorageButton").disabled = selectedCount === 0;
+  const selectAll = $("#storageSelectAll");
+  selectAll.checked = total > 0 && selectedCount === total;
+  selectAll.indeterminate = selectedCount > 0 && selectedCount < total;
+  document.querySelectorAll(".storage-check").forEach(check => {
+    check.addEventListener("change", event => {
+      const row = event.target.closest(".storage-row");
+      const itemId = Number(row.dataset.id);
+      if (event.target.checked) state.storageSelected.add(itemId);
+      else state.storageSelected.delete(itemId);
+      renderStorageItems();
+    });
+  });
+}
+
+async function loadStorageItems() {
+  $("#storageHint").textContent = "正在扫描本地转录文件…";
+  const data = await api("/api/storage/items");
+  const availableIds = new Set((data.items || []).map(item => Number(item.id)));
+  state.storageItems = data.items || [];
+  state.storageSelected = new Set(
+    [...state.storageSelected].filter(itemId => availableIds.has(itemId))
+  );
+  renderStorageItems();
+  if (Number(data.pruned || 0) > 0) {
+    showToast(`已移除 ${data.pruned} 条本地文件缺失的记录`);
+  }
+}
+
+async function deleteSelectedStorageItems() {
+  const ids = [...state.storageSelected];
+  if (!ids.length) return;
+  if (!window.confirm(`确定删除选中的 ${ids.length} 个视频及本地转录结果吗？`)) return;
+  try {
+    const data = await api("/api/storage/items", {
+      method: "DELETE", body: JSON.stringify({ ids })
+    });
+    state.storageSelected.clear();
+    showToast(`已删除 ${data.deleted} 个视频`);
+    await loadStorageItems();
+    if (state.task) await refreshTask();
+  } catch (error) {
+    showMessage(error.message, true);
+    showToast(error.message);
+  }
+}
+
 async function deleteItemArtifacts(itemId) {
   if (!window.confirm("确定删除该视频的 TXT 和媒体缓存吗？")) return;
   try {
@@ -94,6 +170,21 @@ async function deleteItemArtifacts(itemId) {
     await refreshTask();
   } catch (error) {
     showMessage(error.message, true);
+  }
+}
+
+function switchPage(page) {
+  state.page = page;
+  const storage = page === "storage";
+  $("#transcriptionPage").classList.toggle("hidden", storage);
+  $("#storagePage").classList.toggle("hidden", !storage);
+  $("#transcriptionTab").classList.toggle("active", !storage);
+  $("#storageTab").classList.toggle("active", storage);
+  if (storage) {
+    loadStorageItems().catch(error => {
+      $("#storageHint").textContent = error.message;
+      showMessage(error.message, true);
+    });
   }
 }
 
@@ -263,6 +354,18 @@ $("#loginCacheModal").addEventListener("click", event => {
 document.addEventListener("keydown", event => {
   if (event.key === "Escape") closeLoginCacheModal();
 });
+
+$("#transcriptionTab").addEventListener("click", () => switchPage("transcription"));
+$("#storageTab").addEventListener("click", () => switchPage("storage"));
+$("#storageSelectAll").addEventListener("change", event => {
+  if (event.target.checked) {
+    state.storageSelected = new Set(state.storageItems.map(item => Number(item.id)));
+  } else {
+    state.storageSelected.clear();
+  }
+  renderStorageItems();
+});
+$("#deleteStorageButton").addEventListener("click", deleteSelectedStorageItems);
 
 $("#urlForm").addEventListener("submit", async event => {
   event.preventDefault();

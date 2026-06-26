@@ -425,6 +425,30 @@ class WebVideoRepository:
             ).fetchall()
         return [self._item_dict(row) for row in rows]
 
+    def list_storage_items(self) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self.conn.execute(
+                """
+                SELECT *, 0 AS selected, 0 AS ordinal
+                FROM media_items
+                WHERE output_path != ''
+                ORDER BY completed_at DESC, updated_at DESC, id DESC
+                """
+            ).fetchall()
+        return [self._item_dict(row) for row in rows]
+
+    def storage_output_records(self) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self.conn.execute(
+                """
+                SELECT id, output_path
+                FROM media_items
+                WHERE output_path != ''
+                ORDER BY id
+                """
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def selected_items(self, task_id: int) -> list[dict[str, Any]]:
         with self._lock:
             rows = self.conn.execute(
@@ -557,6 +581,18 @@ class WebVideoRepository:
             ).fetchone()
         return dict(row) if row else None
 
+    def transcript_records(self, item_ids: list[int]) -> list[dict[str, Any]]:
+        unique_ids = sorted({int(item_id) for item_id in item_ids if int(item_id) > 0})
+        if not unique_ids:
+            return []
+        placeholders = ",".join("?" for _ in unique_ids)
+        with self._lock:
+            rows = self.conn.execute(
+                f"SELECT * FROM media_items WHERE id IN ({placeholders})",
+                unique_ids,
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def clear_item_artifacts(self, item_id: int) -> None:
         with self._lock:
             self.conn.execute(
@@ -570,6 +606,19 @@ class WebVideoRepository:
                 (_now(), item_id),
             )
             self.conn.commit()
+
+    def delete_items(self, item_ids: list[int]) -> int:
+        unique_ids = sorted({int(item_id) for item_id in item_ids if int(item_id) > 0})
+        if not unique_ids:
+            return 0
+        placeholders = ",".join("?" for _ in unique_ids)
+        with self._lock:
+            cursor = self.conn.execute(
+                f"DELETE FROM media_items WHERE id IN ({placeholders})",
+                unique_ids,
+            )
+            self.conn.commit()
+            return int(cursor.rowcount)
 
     def reset_failed(self, task_id: int) -> int:
         with self._lock:

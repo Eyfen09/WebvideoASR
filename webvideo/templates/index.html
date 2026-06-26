@@ -20,60 +20,85 @@
       </div>
     </header>
 
-    <section class="card input-card">
-      <form id="urlForm">
-        <label for="urlInput">输入网络链接</label>
-        <div class="input-row">
-          <input id="urlInput" type="url" placeholder="https://…" required autocomplete="off">
-          <button id="parseButton" type="submit" class="primary">开始解析</button>
+    <nav class="page-tabs" aria-label="页面">
+      <button id="transcriptionTab" type="button" class="tab-button active">Transcription</button>
+      <button id="storageTab" type="button" class="tab-button">Storage</button>
+    </nav>
+
+    <section id="transcriptionPage">
+      <section class="card input-card">
+        <form id="urlForm">
+          <label for="urlInput">输入网络链接</label>
+          <div class="input-row">
+            <input id="urlInput" type="url" placeholder="https://…" required autocomplete="off">
+            <button id="parseButton" type="submit" class="primary">开始解析</button>
+          </div>
+        </form>
+        <p id="message" class="message"></p>
+      </section>
+
+      <section id="taskCard" class="card task-card hidden">
+        <div class="task-heading">
+          <div>
+            <p id="taskStatus" class="status-pill">等待</p>
+            <h2 id="taskTitle">解析结果</h2>
+            <a id="sourceLink" class="source-link" target="_blank" rel="noreferrer"></a>
+          </div>
+          <div class="task-actions">
+            <button id="retryButton" class="secondary hidden">重试失败项</button>
+            <button id="confirmButton" class="primary" disabled>开始转录</button>
+          </div>
         </div>
-      </form>
-      <p id="message" class="message"></p>
+
+        <div id="browserActions" class="browser-actions hidden">
+          <div>
+            <strong>Chrome 已打开，浏览器会保持等待</strong>
+            <span>请完成登录；如果该网页无需登录，也可以直接继续解析。</span>
+          </div>
+          <button id="skipLoginButton" class="secondary">无需登录，继续</button>
+          <button id="loginCompleteButton" class="primary">登录完成，继续解析</button>
+        </div>
+
+        <div id="qrLogin" class="qr-login hidden">
+          <img id="loginQrCode" alt="登录二维码">
+          <div>
+            <strong id="qrPlatform">扫码登录</strong>
+            <span id="qrMessage">请使用对应平台客户端扫码并确认。</span>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div><strong id="totalCount">0</strong><span>已发现</span></div>
+          <div><strong id="selectedCount">0</strong><span>已选择</span></div>
+          <div><strong id="completedCount">0</strong><span>已完成</span></div>
+          <div><strong id="failedCount">0</strong><span>需处理</span></div>
+        </div>
+
+        <div class="list-toolbar">
+          <label class="select-all"><input id="selectAll" type="checkbox" checked> 全选</label>
+          <span id="listHint">解析完成后确认选择</span>
+        </div>
+        <div id="videoList" class="video-list" aria-live="polite"></div>
+        <div id="emptyState" class="empty-state">尚未发现视频</div>
+      </section>
     </section>
 
-    <section id="taskCard" class="card task-card hidden">
-      <div class="task-heading">
-        <div>
-          <p id="taskStatus" class="status-pill">等待</p>
-          <h2 id="taskTitle">解析结果</h2>
-          <a id="sourceLink" class="source-link" target="_blank" rel="noreferrer"></a>
+    <section id="storagePage" class="hidden">
+      <section class="card storage-card">
+        <div class="storage-heading">
+          <div>
+            <p class="eyebrow">STORAGE</p>
+            <h2>已转录视频</h2>
+          </div>
+          <button id="deleteStorageButton" type="button" class="danger" disabled>删除选中</button>
         </div>
-        <div class="task-actions">
-          <button id="retryButton" class="secondary hidden">重试失败项</button>
-          <button id="confirmButton" class="primary" disabled>开始转录</button>
+        <div class="list-toolbar">
+          <label class="select-all"><input id="storageSelectAll" type="checkbox"> 全选</label>
+          <span id="storageHint">正在读取转录结果…</span>
         </div>
-      </div>
-
-      <div id="browserActions" class="browser-actions hidden">
-        <div>
-          <strong>Chrome 已打开，浏览器会保持等待</strong>
-          <span>请完成登录；如果该网页无需登录，也可以直接继续解析。</span>
-        </div>
-        <button id="skipLoginButton" class="secondary">无需登录，继续</button>
-        <button id="loginCompleteButton" class="primary">登录完成，继续解析</button>
-      </div>
-
-      <div id="qrLogin" class="qr-login hidden">
-        <img id="loginQrCode" alt="登录二维码">
-        <div>
-          <strong id="qrPlatform">扫码登录</strong>
-          <span id="qrMessage">请使用对应平台客户端扫码并确认。</span>
-        </div>
-      </div>
-
-      <div class="stats">
-        <div><strong id="totalCount">0</strong><span>已发现</span></div>
-        <div><strong id="selectedCount">0</strong><span>已选择</span></div>
-        <div><strong id="completedCount">0</strong><span>已完成</span></div>
-        <div><strong id="failedCount">0</strong><span>需处理</span></div>
-      </div>
-
-      <div class="list-toolbar">
-        <label class="select-all"><input id="selectAll" type="checkbox" checked> 全选</label>
-        <span id="listHint">解析完成后确认选择</span>
-      </div>
-      <div id="videoList" class="video-list" aria-live="polite"></div>
-      <div id="emptyState" class="empty-state">尚未发现视频</div>
+        <div id="storageList" class="storage-list" aria-live="polite"></div>
+        <div id="storageEmpty" class="empty-state hidden">还没有可管理的转录结果</div>
+      </section>
     </section>
   </main>
   <div id="loginCacheModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="loginCacheTitle">

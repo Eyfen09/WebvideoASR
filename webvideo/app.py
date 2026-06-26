@@ -49,6 +49,10 @@ class BrowserActionRequest(BaseModel):
     action: Literal["continue", "skip"]
 
 
+class StorageDeleteRequest(BaseModel):
+    ids: list[int]
+
+
 class Runtime:
     def __init__(self, config: WebVideoConfig) -> None:
         config.validate()
@@ -347,5 +351,24 @@ def create_app(
         except ArtifactDeleteError as exc:
             raise HTTPException(409, str(exc)) from exc
         return {"ok": True}
+
+    @app.get("/api/storage/items")
+    def storage_items() -> dict[str, Any]:
+        pruned = state.artifacts.prune_missing_outputs()
+        items = state.repository.list_storage_items()
+        return {"items": items, "total": len(items), "pruned": pruned}
+
+    @app.delete("/api/storage/items")
+    def delete_storage_items(payload: StorageDeleteRequest) -> dict[str, int]:
+        if state.workers.is_running():
+            raise HTTPException(409, "任务运行期间不能删除视频数据")
+        ids = sorted({int(item_id) for item_id in payload.ids if int(item_id) > 0})
+        if not ids:
+            raise HTTPException(422, "请选择要删除的视频")
+        try:
+            deleted = state.artifacts.delete_records(ids)
+        except ArtifactDeleteError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        return {"deleted": deleted}
 
     return app
