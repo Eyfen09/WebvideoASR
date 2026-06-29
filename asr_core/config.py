@@ -26,6 +26,8 @@ class ASRConfig:
     timestamps: bool
     forced_aligner: str
     output_dir: Path
+    chunk_seconds: int = 0
+    chunk_overlap_seconds: int = 0
 
 
 def require_mapping(data: Mapping[str, Any], key: str) -> Mapping[str, Any]:
@@ -40,6 +42,21 @@ def require_string(data: Mapping[str, Any], path: str, key: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ConfigError(f"配置项 {path}.{key} 必须是非空字符串")
     return value.strip()
+
+
+def optional_non_negative_int(
+    data: Mapping[str, Any], path: str, key: str, default: int
+) -> int:
+    value = data.get(key, default)
+    if isinstance(value, bool):
+        raise ConfigError(f"配置项 {path}.{key} 必须是非负整数")
+    try:
+        number = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ConfigError(f"配置项 {path}.{key} 必须是非负整数") from exc
+    if number < 0:
+        raise ConfigError(f"配置项 {path}.{key} 必须是非负整数")
+    return number
 
 
 def resolve_path(value: str, base_dir: Path) -> Path:
@@ -97,6 +114,16 @@ def load_asr_config(config_path: Path) -> ASRConfig:
     forced_aligner = require_string(
         transcription, "transcription", "forced_aligner"
     )
+    chunk_seconds = optional_non_negative_int(
+        transcription, "transcription", "chunk_seconds", 300
+    )
+    chunk_overlap_seconds = optional_non_negative_int(
+        transcription, "transcription", "chunk_overlap_seconds", 10
+    )
+    if chunk_seconds > 0 and chunk_overlap_seconds >= chunk_seconds:
+        raise ConfigError(
+            "配置项 transcription.chunk_overlap_seconds 必须小于 chunk_seconds"
+        )
     output_dir = resolve_path(
         require_string(output, "output", "directory"), config_path.parent
     )
@@ -107,4 +134,6 @@ def load_asr_config(config_path: Path) -> ASRConfig:
         timestamps=timestamps,
         forced_aligner=forced_aligner,
         output_dir=output_dir,
+        chunk_seconds=chunk_seconds,
+        chunk_overlap_seconds=chunk_overlap_seconds,
     )

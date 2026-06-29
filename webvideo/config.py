@@ -19,6 +19,8 @@ class WebVideoConfig:
     language: str | None = None
     timestamps: bool = False
     forced_aligner: str = "Qwen/Qwen3-ForcedAligner-0.6B"
+    chunk_seconds: int = 300
+    chunk_overlap_seconds: int = 10
     output_dir: Path = PROJECT_ROOT / "output" / "webvideo"
     cache_dir: Path = PROJECT_ROOT / ".cache" / "webvideo"
     database_path: Path = PROJECT_ROOT / "data" / "webvideo.sqlite3"
@@ -59,6 +61,13 @@ class WebVideoConfig:
             raise ValueError("端口必须在 1 到 65535 之间")
         if self.download_concurrency < 1 or self.probe_concurrency < 1:
             raise ValueError("并发数必须大于零")
+        if self.chunk_seconds < 0 or self.chunk_overlap_seconds < 0:
+            raise ValueError("切段时长和重叠时长不能小于零")
+        if (
+            self.chunk_seconds > 0
+            and self.chunk_overlap_seconds >= self.chunk_seconds
+        ):
+            raise ValueError("重叠时长必须小于切段时长")
         if self.preferred_login_mode not in {"qrcode", "browser"}:
             raise ValueError("preferred_login_mode 必须是 qrcode 或 browser")
         if not 0 <= self.fallback_jaccard_threshold <= 1:

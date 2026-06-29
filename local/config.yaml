@@ -6,6 +6,8 @@ transcription:
   language: null
   timestamps: false
   forced_aligner: "Qwen/Qwen3-ForcedAligner-0.6B"
+  chunk_seconds: 300
+  chunk_overlap_seconds: 10
 
 output:
   directory: "../output/local"

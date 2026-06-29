@@ -5,8 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from asr_core.config import ASRConfig, Device
-from asr_core.engine import create_session, transcribe_audio
-from asr_core.formatting import format_transcript
+from asr_core.engine import create_session, transcribe_audio_text
 
 from .config import WebVideoConfig
 from .downloader import DownloadCancelled, MediaDownloadError, MediaDownloader
@@ -77,20 +76,6 @@ class TranscriptionPipeline:
             should_stop=lambda: self.repository.should_stop(task_id),
         )
 
-    @staticmethod
-    def _combine(results: list[dict[str, Any]], timestamps: bool) -> tuple[str, str]:
-        bodies: list[str] = []
-        languages: list[str] = []
-        for index, result in enumerate(results, start=1):
-            body = format_transcript(result, timestamps=timestamps).strip()
-            if len(results) > 1:
-                body = f"【媒体部分 {index}】\n{body}"
-            bodies.append(body)
-            language = str(result.get("language") or "").strip()
-            if language and language not in languages:
-                languages.append(language)
-        return "\n\n".join(bodies).rstrip() + "\n", ", ".join(languages)
-
     def _restore_completed(self, item: dict[str, Any]) -> bool:
         if item["status"] != "completed":
             return False
@@ -132,6 +117,8 @@ class TranscriptionPipeline:
             timestamps=self.config.timestamps,
             forced_aligner=self.config.forced_aligner,
             output_dir=self.config.output_dir,
+            chunk_seconds=self.config.chunk_seconds,
+            chunk_overlap_seconds=self.config.chunk_overlap_seconds,
         )
         session: object | None = None
         failures = 0
@@ -184,17 +171,28 @@ class TranscriptionPipeline:
                     self.repository.update_item(
                         item_id, status="transcribing", progress=0
                     )
-                    results: list[dict[str, Any]] = []
+                    bodies: list[str] = []
+                    languages: list[str] = []
                     for part_index, audio_path in enumerate(files):
                         if self.repository.should_stop(task_id):
                             self.repository.update_item(item_id, status="cancelled")
                             break
                         def on_progress(event: dict[str, Any]) -> None:
-                            if event.get("event") != "chunk_started":
+                            audio_index = int(event.get("audio_chunk_index") or 1)
+                            audio_total = max(
+                                1, int(event.get("audio_total_chunks") or 1)
+                            )
+                            if event.get("event") == "audio_chunk_started":
+                                part_fraction = (audio_index - 1) / audio_total
+                            elif event.get("event") == "chunk_started":
+                                current = int(event.get("chunk_index") or 0)
+                                total = max(1, int(event.get("total_chunks") or 1))
+                                inner_fraction = current / total
+                                part_fraction = (
+                                    audio_index - 1 + inner_fraction
+                                ) / audio_total
+                            else:
                                 return
-                            current = int(event.get("chunk_index") or 0)
-                            total = max(1, int(event.get("total_chunks") or 1))
-                            part_fraction = current / total
                             overall = (part_index + part_fraction) / len(files) * 100
                             self.repository.update_item(
                                 item_id,
@@ -202,20 +200,23 @@ class TranscriptionPipeline:
                                 progress=overall,
                             )
 
-                        results.append(
-                            transcribe_audio(
-                                session,
-                                audio_path,
-                                asr_config,
-                                on_progress=on_progress,
-                            )
+                        text, language = transcribe_audio_text(
+                            session,
+                            audio_path,
+                            asr_config,
+                            on_progress=on_progress,
+                            should_stop=lambda: self.repository.should_stop(task_id),
                         )
+                        if len(files) > 1:
+                            text = f"【媒体部分 {part_index + 1}】\n{text.strip()}\n"
+                        bodies.append(text.strip())
+                        if language and language not in languages:
+                            languages.append(language)
                     if self.repository.should_stop(task_id):
                         self.repository.update_item(item_id, status="cancelled")
                         continue
-                    transcript, language = self._combine(
-                        results, asr_config.timestamps
-                    )
+                    transcript = "\n\n".join(bodies).rstrip() + "\n"
+                    language = ", ".join(languages)
                     record = self.repository.transcript_record(item_id)
                     if record is None:
                         raise RuntimeError("转录条目在数据库中丢失")

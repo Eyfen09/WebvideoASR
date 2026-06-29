@@ -74,6 +74,43 @@ uv run main.py local path/to/dir/ --gpu
 
 配置文件：[local/config.yaml](local/config.yaml)
 
+### 按时长切段转写
+
+长音频/长视频可以按固定时长切成小段逐段转写，减少单次模型推理占用的内存/显存，降低 OOM 风险。相邻片段可以保留一段重叠，避免刚好在分段边界切断一句话。
+
+本地转写在 [local/config.yaml](local/config.yaml) 里配置：
+
+```yaml
+transcription:
+  chunk_seconds: 300
+  chunk_overlap_seconds: 10
+```
+
+Web 转写在 [webvideo/config.py](webvideo/config.py) 的 `WebVideoConfig` 里配置：
+
+```python
+chunk_seconds: int = 300
+chunk_overlap_seconds: int = 10
+```
+
+- `chunk_seconds`：每段长度，单位秒。默认 `300`，即 5 分钟。
+- `chunk_overlap_seconds`：相邻两段的重叠长度，单位秒。默认 `10`。
+- `chunk_seconds <= 0` 表示不切段，按整段音频/视频转写。
+- `chunk_overlap_seconds` 必须小于 `chunk_seconds`。
+
+启用切段后，输出文本会保留每段时间范围，不会裁掉重叠内容：
+
+```text
+[00:00:00-00:05:00]
+第一段文本
+
+[00:04:50-00:10:00]
+第二段文本
+
+[00:09:50-00:11:00]
+第三段文本
+```
+
 ### Web 界面
 
 ```bash

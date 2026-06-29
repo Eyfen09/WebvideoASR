@@ -5,8 +5,8 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from asr_core.config import ASRConfig
-from asr_core.engine import make_progress_callback, transcribe_audio
-from asr_core.formatting import format_transcript, write_text_atomic
+from asr_core.engine import make_progress_callback, transcribe_audio_text
+from asr_core.formatting import write_text_atomic
 
 
 SUPPORTED_EXTENSIONS = frozenset(
@@ -58,13 +58,12 @@ def process_files(
     for index, audio_path in enumerate(audio_files, start=1):
         print(f"[{index}/{len(audio_files)}] 转写：{audio_path}")
         try:
-            result = transcribe_audio(
+            content, _ = transcribe_audio_text(
                 session,
                 audio_path,
                 config,
                 on_progress=make_progress_callback(),
             )
-            content = format_transcript(result, timestamps=config.timestamps)
             destination = output_path_for(audio_path, input_path, config.output_dir)
             write_text_atomic(destination, content)
         except Exception as exc:
