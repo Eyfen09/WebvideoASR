@@ -56,15 +56,26 @@ class ArtifactCleaner:
         output_value = str(record.get("output_path") or "").strip()
         cache_value = str(record.get("audio_cache_path") or "").strip()
         output = Path(output_value) if output_value else None
-        cache = Path(cache_value) if cache_value else None
+        caches: list[Path] = []
+        if cache_value:
+            caches.append(Path(cache_value))
+        try:
+            item_id = int(record.get("id") or 0)
+        except (TypeError, ValueError):
+            item_id = 0
+        if item_id > 0:
+            item_cache = self.config.cache_dir / str(item_id)
+            if item_cache not in caches:
+                caches.append(item_cache)
         if output is not None and not _inside(output, self.config.output_dir):
             raise ArtifactDeleteError("转录文件不在 WebVideo 输出目录中")
-        if cache is not None and not _inside(cache, self.config.cache_dir):
-            raise ArtifactDeleteError("媒体缓存不在 WebVideo 缓存目录中")
+        for cache in caches:
+            if not _inside(cache, self.config.cache_dir):
+                raise ArtifactDeleteError("媒体缓存不在 WebVideo 缓存目录中")
         try:
             if output is not None:
                 output.unlink(missing_ok=True)
-            if cache is not None:
+            for cache in caches:
                 if cache.is_dir():
                     shutil.rmtree(cache)
                 else:

@@ -155,6 +155,7 @@ class TranscriptionPipeline:
                     files = future.result()
                 except DownloadCancelled:
                     self.repository.update_item(item_id, status="cancelled")
+                    self.downloader.cleanup(item_id)
                     continue
                 except MediaDownloadError as exc:
                     failures += 1
@@ -163,10 +164,12 @@ class TranscriptionPipeline:
                         status="unsupported" if exc.unsupported else "failed",
                         error=str(exc),
                     )
+                    self.downloader.cleanup(item_id)
                     continue
                 except Exception as exc:
                     failures += 1
                     self.repository.update_item(item_id, status="failed", error=str(exc))
+                    self.downloader.cleanup(item_id)
                     continue
 
                 try:
@@ -222,14 +225,17 @@ class TranscriptionPipeline:
                     self.repository.store_transcript(
                         item_id, transcript, language, destination
                     )
-                    self.downloader.cleanup(item_id)
                 except Exception as exc:
                     failures += 1
                     self.repository.update_item(
                         item_id, status="failed", error=str(exc)
                     )
+                finally:
+                    self.downloader.cleanup(item_id)
 
         if self.repository.should_stop(task_id):
+            for item in pending:
+                self.downloader.cleanup(int(item["id"]))
             return
         elif failures:
             self.repository.set_task_status(task_id, "completed_with_errors")

@@ -27,6 +27,7 @@ MEDIA_EXTENSIONS = frozenset(
         ".webm",
     }
 )
+CACHE_IDENTITY_FILE = ".video-identity"
 
 
 class MediaDownloadError(RuntimeError):
@@ -77,6 +78,39 @@ class MediaDownloader:
     def item_cache_dir(self, item_id: int) -> Path:
         return self.config.cache_dir / str(item_id)
 
+    @staticmethod
+    def _cache_identity(item: dict[str, Any]) -> str:
+        identity = str(item.get("identity") or "").strip()
+        if identity:
+            return identity
+        extractor = str(item.get("extractor") or "").strip()
+        media_id = str(item.get("media_id") or "").strip()
+        if extractor and media_id:
+            return f"{extractor.casefold()}:{media_id}"
+        return str(item.get("webpage_url") or item.get("url") or "").strip()
+
+    def _cache_matches_item(self, directory: Path, item: dict[str, Any]) -> bool:
+        expected = self._cache_identity(item)
+        if not expected:
+            return False
+        try:
+            actual = (directory / CACHE_IDENTITY_FILE).read_text(
+                encoding="utf-8"
+            ).strip()
+        except OSError:
+            return False
+        return actual == expected
+
+    def _prepare_cache_dir(self, item: dict[str, Any]) -> Path:
+        directory = self.item_cache_dir(int(item["id"]))
+        if directory.exists() and not self._cache_matches_item(directory, item):
+            shutil.rmtree(directory, ignore_errors=True)
+        directory.mkdir(parents=True, exist_ok=True)
+        identity = self._cache_identity(item)
+        if identity:
+            (directory / CACHE_IDENTITY_FILE).write_text(identity, encoding="utf-8")
+        return directory
+
     def _files(self, item_id: int) -> list[Path]:
         directory = self.item_cache_dir(item_id)
         if not directory.is_dir():
@@ -90,8 +124,12 @@ class MediaDownloader:
             and not path.name.endswith((".part", ".ytdl"))
         )
 
-    def cached_files(self, item_id: int) -> list[Path]:
+    def cached_files(self, item: dict[str, Any]) -> list[Path]:
+        item_id = int(item["id"])
         directory = self.item_cache_dir(item_id)
+        if directory.exists() and not self._cache_matches_item(directory, item):
+            shutil.rmtree(directory, ignore_errors=True)
+            return []
         if not (directory / ".download-complete").is_file():
             return []
         return self._files(item_id)
@@ -132,12 +170,11 @@ class MediaDownloader:
         should_stop: Callable[[], bool],
     ) -> list[Path]:
         item_id = int(item["id"])
-        cached = self.cached_files(item_id)
+        cached = self.cached_files(item)
         if cached:
             on_progress(100)
             return cached
-        directory = self.item_cache_dir(item_id)
-        directory.mkdir(parents=True, exist_ok=True)
+        directory = self._prepare_cache_dir(item)
 
         def progress_hook(event: dict[str, Any]) -> None:
             if should_stop():
